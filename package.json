@@ -1,17 +1,21 @@
 {
-  "name": "grok-vs-popcorns",
+  "name": "chatgpt-vs-popcorns",
   "version": "1.0.0",
-  "description": "Grok vs Popcorns - sword-shooting multiplayer battle",
+  "description": "Multiplayer Popcorn Battle — ChatGPT vs Popcorns",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": ">=18"
+    "start": "node server.js",
+    "build": "echo 'No build step needed — static root files ready.'",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "uuid": "^9.0.1"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
