@@ -27,8 +27,8 @@ io.on('connection', (socket) => {
 
   players[socket.id] = {
     id: socket.id,
-    x: Math.random() * WORLD_SIZE.w,
-    y: Math.random() * WORLD_SIZE.h,
+x: 500 + Math.random() * 400, // spawn near visible center
+y: 300 + Math.random() * 200,
     angle: 0,
     team,
     health: 100,
@@ -119,3 +119,4 @@ server.listen(PORT, () => {
   console.log(`Grok vs Popcorns running on http://localhost:${PORT}`);
   console.log(`Team balancing: Groks  Popcorns`);
 });
+
