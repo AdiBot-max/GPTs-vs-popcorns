@@ -1,7 +1,8 @@
+localStorage.clear(); // clear any leftover game state
+const socket = io({ forceNew: true }); // always get a fresh socket
 const socket = io();
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
 let myId = null;
 let players = {};
 let bullets = [];
@@ -75,3 +76,4 @@ function draw() {
 }
 
 draw();
+
