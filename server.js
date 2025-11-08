@@ -1,122 +1,62 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new Server(server);
+
+const PORT = process.env.PORT || 10000;
+
+const players = {};
+const WORLD_SIZE = { w: 1000, h: 600 };
 
 app.use(express.static(__dirname));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
-const PORT = process.env.PORT || 3000;
+io.on("connection", (socket) => {
+  console.log("Player joined:", socket.id);
 
-// === Game State ===
-const players = {};
-const swords = {};
-const WORLD_SIZE = { w: 2000, h: 1500 };
-
-// === Socket Connection ===
-io.on('connection', (socket) => {
-  console.log('Player connected:', socket.id);
-
-  const team = Object.values(players).filter(p => p.team === 'grok').length <
-               Object.values(players).filter(p => p.team === 'popcorn').length ? 'grok' : 'popcorn';
-
-  players[socket.id] = {
+  // Random but visible position
+  const player = {
     id: socket.id,
-x: 500 + Math.random() * 400, // spawn near visible center
-y: 300 + Math.random() * 200,
+    x: 400 + Math.random() * 200,
+    y: 250 + Math.random() * 100,
+    team: Math.random() > 0.5 ? "chatGPT" : "popcorn",
     angle: 0,
-    team,
-    health: 100,
-    kills: 0,
-    deaths: 0
+    alive: true
   };
 
-  socket.emit('currentPlayers', players);
-  socket.emit('youAre', { id: socket.id, team });
-  socket.broadcast.emit('newPlayer', players[socket.id]);
+  players[socket.id] = player;
+  io.emit("updatePlayers", players);
 
-  // === Movement ===
-  socket.on('playerMove', (data) => {
-    if (!players[socket.id]) return;
-    players[socket.id].x = data.x;
-    players[socket.id].y = data.y;
-    players[socket.id].angle = data.angle; // ✅ fix: store rotation
-    io.emit('playerMoved', { id: socket.id, ...players[socket.id] });
+  socket.on("move", (data) => {
+    const p = players[socket.id];
+    if (!p) return;
+    const speed = 5;
+    if (data.up) p.y -= speed;
+    if (data.down) p.y += speed;
+    if (data.left) p.x -= speed;
+    if (data.right) p.x += speed;
+    p.angle = data.angle;
+    io.emit("updatePlayers", players);
   });
 
-  // === Sword shooting ===
-  socket.on('shootSword', (sword) => {
-    const player = players[socket.id];
-    if (!player || player.health <= 0) return;
-
-    const swordId = uuidv4();
-    swords[swordId] = {
-      ...sword,
-      id: swordId,
-      owner: socket.id,
-      team: player.team,
-      createdAt: Date.now()
-    };
-    io.emit('swordShot', swords[swordId]);
+  socket.on("shoot", () => {
+    // simple broadcast (can expand later)
+    io.emit("shoot", { id: socket.id });
   });
 
-  socket.on('disconnect', () => {
-    console.log('Player disconnected:', socket.id);
+  socket.on("disconnect", () => {
     delete players[socket.id];
-    io.emit('playerLeft', socket.id);
+    io.emit("updatePlayers", players);
+    console.log("Player left:", socket.id);
   });
 });
-
-// === Game Loop ===
-setInterval(() => {
-  const toDelete = [];
-
-  for (const sid in swords) {
-    const s = swords[sid];
-    s.x += s.vx;
-    s.y += s.vy;
-    s.life--;
-
-    if (s.life <= 0 || s.x < 0 || s.x > WORLD_SIZE.w || s.y < 0 || s.y > WORLD_SIZE.h) {
-      toDelete.push(sid);
-      continue;
-    }
-
-    for (const pid in players) {
-      const p = players[pid];
-      if (p.team === s.team) continue;
-      const dx = p.x - s.x;
-      const dy = p.y - s.y;
-      if (Math.sqrt(dx * dx + dy * dy) < 30) {
-        p.health -= 40;
-        toDelete.push(sid);
-
-        if (p.health <= 0) {
-          players[s.owner].kills++;
-          p.deaths++;
-          p.health = 100;
-          p.x = Math.random() * WORLD_SIZE.w;
-          p.y = Math.random() * WORLD_SIZE.h;
-          io.emit('playerDied', { id: pid, killer: s.owner });
-        }
-        io.emit('playerHit', { id: pid, health: p.health });
-        break;
-      }
-    }
-  }
-
-  toDelete.forEach(id => delete swords[id]);
-  io.emit('swordsUpdate', swords);
-  io.emit('playersUpdate', players); // ✅ broadcast updated player rotations
-}, 1000 / 60);
 
 server.listen(PORT, () => {
-  console.log(`Grok vs Popcorns running on http://localhost:${PORT}`);
-  console.log(`Team balancing: Groks  Popcorns`);
+  console.log(`✅ Game server running on http://localhost:${PORT}`);
 });
-
