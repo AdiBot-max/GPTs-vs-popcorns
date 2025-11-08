@@ -13,114 +13,90 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 3000;
 
-// Game state
 const players = {};
-const swords = {};
+const bullets = [];
 const WORLD_SIZE = { w: 2000, h: 1500 };
 
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   console.log('Player connected:', socket.id);
 
-  // Create player
-  const team = Object.values(players).filter(p => p.team === 'grok').length <
-               Object.values(players).filter(p => p.team === 'popcorn').length ? 'grok' : 'popcorn';
-
+  const team = Object.keys(players).length % 2 === 0 ? 1 : 2;
   players[socket.id] = {
     id: socket.id,
+    name: team === 1 ? '🍿 Popcorn' : '🤖 ChatGPT',
     x: Math.random() * WORLD_SIZE.w,
     y: Math.random() * WORLD_SIZE.h,
-    angle: 0,
-    team,
+    rot: 0,
     health: 100,
-    kills: 0,
-    deaths: 0
+    team,
+    score: 0,
   };
 
-  socket.emit('currentPlayers', players);
-  socket.emit('youAre', { id: socket.id, team });
-  socket.broadcast.emit('newPlayer', players[socket.id]);
+  socket.emit('init', { id: socket.id, players, bullets });
+  io.emit('players', players);
 
-  socket.on('playerMove', (data) => {
-    if (players[socket.id]) {
-      players[socket.id].x = data.x;
-      players[socket.id].y = data.y;
-      players[socket.id].angle = data.angle;
-      socket.broadcast.emit('playerMoved', { id: socket.id, ...data });
-    }
+  socket.on('input', data => {
+    const p = players[socket.id];
+    if (!p) return;
+    const speed = 4;
+    if (data.up) p.y -= speed;
+    if (data.down) p.y += speed;
+    if (data.left) p.x -= speed;
+    if (data.right) p.x += speed;
+    p.rot = data.angle;
   });
 
-  socket.on('shootSword', (sword) => {
-    const player = players[socket.id];
-    if (!player || player.health <= 0) return;
-
-    const swordId = uuidv4();
-    swords[swordId] = {
-      ...sword,
-      id: swordId,
+  socket.on('shoot', ({ angle }) => {
+    const p = players[socket.id];
+    if (!p) return;
+    bullets.push({
+      id: uuidv4(),
+      x: p.x,
+      y: p.y,
+      vx: Math.cos(angle) * 8,
+      vy: Math.sin(angle) * 8,
+      team: p.team,
       owner: socket.id,
-      team: player.team,
-      createdAt: Date.now()
-    };
-    io.emit('swordShot', swords[swordId]);
+    });
   });
 
   socket.on('disconnect', () => {
-    console.log('Player disconnected:', socket.id);
     delete players[socket.id];
-    io.emit('playerLeft', socket.id);
+    io.emit('players', players);
   });
 });
 
-// Game loop - broadcast state & check collisions
 setInterval(() => {
-  // Sword movement & collision
-  const now = Date.now();
-  const toDelete = [];
-
-  for (const sid in swords) {
-    const s = swords[sid];
-    s.x += s.vx;
-    s.y += s.vy;
-    s.life--;
-
-    // Out of bounds or expired
-    if (s.life <= 0 || s.x < 0 || s.x > WORLD_SIZE.w || s.y < 0 || s.y > WORLD_SIZE.h) {
-      toDelete.push(sid);
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    if (b.x < 0 || b.x > WORLD_SIZE.w || b.y < 0 || b.y > WORLD_SIZE.h) {
+      bullets.splice(i, 1);
       continue;
     }
-
-    // Check collision with players
     for (const pid in players) {
       const p = players[pid];
-      if (p.team === s.team) continue; // same team
-      const dx = p.x - s.x;
-      const dy = p.y - s.y;
-      if (Math.sqrt(dx*dx + dy*dy) < 30) {
+      if (p.team === b.team) continue;
+      const dx = p.x - b.x;
+      const dy = p.y - b.y;
+      if (dx * dx + dy * dy < 30 * 30) {
         p.health -= 40;
-        toDelete.push(sid);
-
+        bullets.splice(i, 1);
         if (p.health <= 0) {
-          players[s.owner].kills++;
-          p.deaths++;
           p.health = 100;
           p.x = Math.random() * WORLD_SIZE.w;
           p.y = Math.random() * WORLD_SIZE.h;
-          io.emit('playerDied', { id: pid, killer: s.owner });
+          players[b.owner].score++;
         }
-        io.emit('playerHit', { id: pid, health: p.health });
         break;
       }
     }
   }
 
-  toDelete.forEach(id => delete swords[id]);
-  io.emit('swordsUpdate', swords);
-
-}, 1000 / 60);
+  io.emit('state', { players, bullets });
+}, 1000 / 30);
 
 server.listen(PORT, () => {
-  console.log(`Grok vs Popcorns running on http://localhost:${PORT}`);
-  console.log(`Team balancing: Groks  Popcorns`);
-
+  console.log(`ChatGPT vs Popcorns running on http://localhost:${PORT}`);
 });
-
