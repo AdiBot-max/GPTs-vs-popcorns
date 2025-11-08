@@ -164,51 +164,50 @@
 
   <!-- small inline UI script (keeps HTML file self-contained) -->
   <script>
+  document.addEventListener('DOMContentLoaded', () => {
     // Basic UI glue (no logic changes to game)
-    (function(){
-      const btnHelp = document.getElementById('btn-help');
-      const btnCredits = document.getElementById('btn-credits');
-      const modalHelp = document.getElementById('modal-help');
-      const modalCredits = document.getElementById('modal-credits');
-      const closeHelp = document.getElementById('close-help');
-      const closeCredits = document.getElementById('close-credits');
-      const nameInput = document.getElementById('playerName');
-      const teamPop = document.getElementById('team-pop');
-      const teamGPT = document.getElementById('team-gpt');
-      const teamAuto = document.getElementById('team-auto');
-      const btnJoin = document.getElementById('btn-join');
-      const playerList = document.getElementById('player-list');
+    const btnHelp = document.getElementById('btn-help');
+    const btnCredits = document.getElementById('btn-credits');
+    const modalHelp = document.getElementById('modal-help');
+    const modalCredits = document.getElementById('modal-credits');
+    const closeHelp = document.getElementById('close-help');
+    const closeCredits = document.getElementById('close-credits');
+    const nameInput = document.getElementById('playerName');
+    const teamPop = document.getElementById('team-pop');
+    const teamGPT = document.getElementById('team-gpt');
+    const teamAuto = document.getElementById('team-auto');
+    const btnJoin = document.getElementById('btn-join');
+    const playerList = document.getElementById('player-list');
 
-      function show(el){ el.style.display = 'block'; el.setAttribute('aria-hidden','false'); }
-      function hide(el){ el.style.display = 'none'; el.setAttribute('aria-hidden','true'); }
+    function show(el){ el.style.display = 'block'; el.setAttribute('aria-hidden','false'); }
+    function hide(el){ el.style.display = 'none'; el.setAttribute('aria-hidden','true'); }
 
-      btnHelp.onclick = () => show(modalHelp);
-      btnCredits.onclick = () => show(modalCredits);
-      closeHelp.onclick = () => hide(modalHelp);
-      closeCredits.onclick = () => hide(modalCredits);
+    btnHelp.onclick = () => show(modalHelp);
+    btnCredits.onclick = () => show(modalCredits);
+    closeHelp.onclick = () => hide(modalHelp);
+    closeCredits.onclick = () => hide(modalCredits);
 
-      teamPop.onclick = () => { teamPop.classList.add('active'); teamGPT.classList.remove('active'); teamAuto.classList.remove('active'); };
-      teamGPT.onclick = () => { teamGPT.classList.add('active'); teamPop.classList.remove('active'); teamAuto.classList.remove('active'); };
-      teamAuto.onclick = () => { teamAuto.classList.add('active'); teamPop.classList.remove('active'); teamGPT.classList.remove('active'); };
+    teamPop.onclick = () => { teamPop.classList.add('active'); teamGPT.classList.remove('active'); teamAuto.classList.remove('active'); };
+    teamGPT.onclick = () => { teamGPT.classList.add('active'); teamPop.classList.remove('active'); teamAuto.classList.remove('active'); };
+    teamAuto.onclick = () => { teamAuto.classList.add('active'); teamPop.classList.remove('active'); teamGPT.classList.remove('active'); };
 
-      btnJoin.onclick = () => {
-        btnJoin.disabled = true;
-        const name = nameInput.value.trim() || 'Player';
-        // add a local visual only entry
-        const el = document.createElement('div');
-        el.className = 'player-line you';
-        el.textContent = name + ' (you) — joining...';
-        playerList.prepend(el);
-        setTimeout(()=>{ el.textContent = name + ' — connected'; }, 500);
-      };
+    btnJoin.onclick = () => {
+      btnJoin.disabled = true;
+      const name = nameInput.value.trim() || 'Player';
+      // add a local visual only entry
+      const el = document.createElement('div');
+      el.className = 'player-line you';
+      el.textContent = name + ' (you) — joining...';
+      playerList.prepend(el);
+      setTimeout(()=>{ el.textContent = name + ' — connected'; }, 500);
+    };
 
-      // accessible close via ESC
-      document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hide(modalHelp); hide(modalCredits); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hide(modalHelp); hide(modalCredits); } });
 
-      // initial state
-      hide(modalHelp);
-      hide(modalCredits);
-    })();
-  </script>
+    hide(modalHelp);
+    hide(modalCredits);
+  });
+</script>
 </body>
 </html>
+
