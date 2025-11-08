@@ -1,7 +1,6 @@
 // === server.js ===
-// Multiplayer Game Server — GPTs vs Popcorns
-// Express + Socket.IO + UUID
-// By Adi
+// ChatGPT vs Popcorns — Multiplayer Arena
+// Express + Socket.IO
 
 const express = require("express");
 const http = require("http");
@@ -12,65 +11,72 @@ const { v4: uuidv4 } = require("uuid");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
 const PORT = process.env.PORT || 3000;
 
-// === Static Files ===
-app.use(express.static(path.join(__dirname)));
+// serve static files
+app.use(express.static(__dirname));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // === Game State ===
 const players = {};
 const bullets = {};
-const WORLD = { width: 2000, height: 1500 };
+const WORLD = { w: 2000, h: 1500 };
 
-// === Utils ===
 function randomSpawn() {
-  return { x: Math.random() * WORLD.width, y: Math.random() * WORLD.height };
+  return { x: Math.random() * WORLD.w, y: Math.random() * WORLD.h };
 }
 
-// === Player Connection ===
+// === Socket Handling ===
 io.on("connection", (socket) => {
   const id = socket.id;
   const team =
-    Object.values(players).filter((p) => p.team === "ChatGPT").length <=
-    Object.values(players).filter((p) => p.team === "Popcorn").length
-      ? "ChatGPT"
-      : "Popcorn";
+    Object.values(players).filter((p) => p.team === 1).length <=
+    Object.values(players).filter((p) => p.team === 2).length
+      ? 1
+      : 2;
 
   const spawn = randomSpawn();
   players[id] = {
     id,
     team,
+    name: team === 1 ? "Popcorn" : "ChatGPT",
     x: spawn.x,
     y: spawn.y,
-    angle: 0,
+    rot: 0,
     health: 100,
-    kills: 0,
-    deaths: 0,
-    lastActive: Date.now(),
+    score: 0,
   };
 
-  console.log(`🟢 Player joined: ${id} (${team})`);
-  socket.emit("init", { id, players });
+  console.log(`🟢 Player connected: ${id} (${players[id].name})`);
+
+  // send initial data
+  socket.emit("init", { id, players, bullets });
   io.emit("players", players);
 
-  // === Movement ===
-  socket.on("move", (data) => {
+  // movement + rotation
+  socket.on("input", (data) => {
     const p = players[id];
     if (!p) return;
-    p.x = data.x;
-    p.y = data.y;
-    p.angle = data.angle;
-    p.lastActive = Date.now();
-    io.emit("players", players);
+
+    const speed = 4;
+    if (data.up) p.y -= speed;
+    if (data.down) p.y += speed;
+    if (data.left) p.x -= speed;
+    if (data.right) p.x += speed;
+
+    p.rot = data.angle;
+    p.x = Math.max(0, Math.min(WORLD.w, p.x));
+    p.y = Math.max(0, Math.min(WORLD.h, p.y));
   });
 
-  // === Shooting ===
+  // shooting
   socket.on("shoot", (data) => {
     const p = players[id];
     if (!p) return;
     const bid = uuidv4();
-    const speed = 8;
+    const speed = 9;
+
     bullets[bid] = {
       id: bid,
       x: p.x,
@@ -79,9 +85,8 @@ io.on("connection", (socket) => {
       vy: Math.sin(data.angle) * speed,
       team: p.team,
       owner: id,
-      life: 80,
+      life: 70,
     };
-    io.emit("bullets", bullets);
   });
 
   socket.on("disconnect", () => {
@@ -93,54 +98,43 @@ io.on("connection", (socket) => {
 
 // === Game Loop ===
 setInterval(() => {
-  const now = Date.now();
+  const toRemove = [];
 
-  // Move bullets
   for (const bid in bullets) {
     const b = bullets[bid];
     b.x += b.vx;
     b.y += b.vy;
     b.life--;
-    if (b.life <= 0) delete bullets[bid];
-  }
+    if (b.life <= 0) {
+      toRemove.push(bid);
+      continue;
+    }
 
-  // Bullet collisions
-  for (const bid in bullets) {
-    const b = bullets[bid];
     for (const pid in players) {
       const p = players[pid];
       if (p.team === b.team) continue;
       const dx = p.x - b.x;
       const dy = p.y - b.y;
-      if (Math.hypot(dx, dy) < 22) {
+      if (Math.hypot(dx, dy) < 25) {
         p.health -= 30;
+        toRemove.push(bid);
+
         if (p.health <= 0) {
           p.health = 100;
-          p.deaths++;
-          // ✅ Safe increment without optional chaining
-          if (players[b.owner]) players[b.owner].kills++;
-          const sp = randomSpawn();
-          p.x = sp.x;
-          p.y = sp.y;
-          io.emit("playerDied", { id: pid });
+          p.x = Math.random() * WORLD.w;
+          p.y = Math.random() * WORLD.h;
+          p.score -= 1;
+          if (players[b.owner]) players[b.owner].score += 1;
         }
-        delete bullets[bid];
       }
     }
   }
 
-  // Idle cleanup (60s inactivity)
-  for (const id in players) {
-    if (now - players[id].lastActive > 60000) {
-      console.log(`💤 Idle player removed: ${id}`);
-      delete players[id];
-    }
-  }
-
+  toRemove.forEach((id) => delete bullets[id]);
   io.emit("state", { players, bullets });
 }, 1000 / 60);
 
-// === Server Start ===
-server.listen(PORT, () => {
-  console.log(`🚀 GPTs vs Popcorns running on http://localhost:${PORT}`);
-});
+// === Start ===
+server.listen(PORT, () =>
+  console.log(`🚀 GPTs vs Popcorns running on http://localhost:${PORT}`)
+);
