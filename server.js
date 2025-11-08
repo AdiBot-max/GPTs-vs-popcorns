@@ -16,24 +16,19 @@ const PORT = process.env.PORT || 3000;
 
 // === Static Files ===
 app.use(express.static(path.join(__dirname)));
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // === Game State ===
 const players = {};
 const bullets = {};
 const WORLD = { width: 2000, height: 1500 };
 
-// === Utility ===
+// === Utils ===
 function randomSpawn() {
-  return {
-    x: Math.random() * WORLD.width,
-    y: Math.random() * WORLD.height,
-  };
+  return { x: Math.random() * WORLD.width, y: Math.random() * WORLD.height };
 }
 
-// === Connection Handler ===
+// === Player Connection ===
 io.on("connection", (socket) => {
   const id = socket.id;
   const team =
@@ -59,7 +54,7 @@ io.on("connection", (socket) => {
   socket.emit("init", { id, players });
   io.emit("players", players);
 
-  // === Movement Update ===
+  // === Movement ===
   socket.on("move", (data) => {
     const p = players[id];
     if (!p) return;
@@ -83,12 +78,12 @@ io.on("connection", (socket) => {
       vx: Math.cos(data.angle) * speed,
       vy: Math.sin(data.angle) * speed,
       team: p.team,
+      owner: id,
       life: 80,
     };
     io.emit("bullets", bullets);
   });
 
-  // === Disconnect ===
   socket.on("disconnect", () => {
     console.log(`🔴 Player left: ${id}`);
     delete players[id];
@@ -122,7 +117,8 @@ setInterval(() => {
         if (p.health <= 0) {
           p.health = 100;
           p.deaths++;
-          players[b.owner]?.kills++;
+          // ✅ Safe increment without optional chaining
+          if (players[b.owner]) players[b.owner].kills++;
           const sp = randomSpawn();
           p.x = sp.x;
           p.y = sp.y;
@@ -144,7 +140,7 @@ setInterval(() => {
   io.emit("state", { players, bullets });
 }, 1000 / 60);
 
-// === Start Server ===
+// === Server Start ===
 server.listen(PORT, () => {
   console.log(`🚀 GPTs vs Popcorns running on http://localhost:${PORT}`);
 });
