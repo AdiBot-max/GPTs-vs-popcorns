@@ -3,21 +3,212 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ChatGPT vs Popcorns</title>
+  <title>ChatGPT vs Popcorns — Arena</title>
+
+  <!-- Main styles -->
   <link rel="stylesheet" href="style.css">
+
+  <!-- Favicons and meta -->
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <meta name="description" content="Multiplayer arena: ChatGPT vs Popcorns — fast arcade PvP with swords and bullets.">
 </head>
 <body>
-  <h1 id="title">⚔️ ChatGPT vs Popcorns ⚔️</h1>
+  <header id="site-header" role="banner" aria-label="Game header">
+    <div class="brand">
+      <div class="logo-egg">🍿</div>
+      <h1 class="title">ChatGPT<span class="title-ghost"> vs </span><span class="title-pop">Popcorns</span></h1>
+    </div>
+    <nav class="top-nav" aria-label="Top navigation">
+      <button id="btn-help" class="nav-btn">Help</button>
+      <button id="btn-credits" class="nav-btn">Credits</button>
+      <button id="btn-toggle-theme" class="nav-btn">Theme</button>
+    </nav>
+  </header>
 
-  <div id="ui">
-    <div id="scoreboard">Connecting...</div>
-    <div id="hint">WASD / Arrow keys to move · G to shoot · F for fullscreen</div>
-    <button id="fullscreenBtn">Toggle Fullscreen (F)</button>
+  <!-- Main UI panel (lobby + controls) -->
+  <main id="main" role="main">
+    <section id="left-panel" class="panel">
+      <div class="panel-inner">
+        <h2>Lobby</h2>
+        <div class="form-row">
+          <label for="playerName">Your name</label>
+          <input id="playerName" type="text" placeholder="Player123" maxlength="20">
+        </div>
+
+        <div class="form-row">
+          <label>Choose team</label>
+          <div class="team-choices" role="radiogroup" aria-label="Team choices">
+            <button class="team-btn" data-team="popcorn" id="team-pop">🍿 Popcorns</button>
+            <button class="team-btn" data-team="chatgpt" id="team-gpt">🤖 ChatGPTs</button>
+            <button class="team-btn auto-balance" id="team-auto">Auto-balance</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label for="readyToggle">Ready</label>
+          <div class="controls-row">
+            <button id="btn-join" class="primary">Join Game</button>
+            <button id="btn-spectate" class="secondary">Spectate</button>
+          </div>
+        </div>
+
+        <hr class="soft" />
+
+        <div class="info-block">
+          <h3>Controls</h3>
+          <ul>
+            <li><strong>Move:</strong> WASD or Arrow keys</li>
+            <li><strong>Shoot:</strong> G or Click</li>
+            <li><strong>Fullscreen:</strong> F</li>
+            <li><strong>Chat:</strong> (not implemented) — placeholder</li>
+          </ul>
+        </div>
+
+        <hr class="soft" />
+
+        <div class="info-block">
+          <h3>Game Tips</h3>
+          <ol>
+            <li>Keep moving to avoid sword shots.</li>
+            <li>Use corners to bait enemies into sword range.</li>
+            <li>Teamwork wins: stick with teammates for safety.</li>
+          </ol>
+        </div>
+
+        <footer class="panel-footer">
+          <small>Version: 1.0.3 • Hosted: Render</small>
+        </footer>
+      </div>
+    </section>
+
+    <section id="center-panel" class="panel arena-panel">
+      <div class="arena-topbar">
+        <div id="scoreboard" class="scoreboard">Connecting...</div>
+        <div id="match-timer" class="match-timer">—</div>
+      </div>
+
+      <div class="canvas-wrap">
+        <!-- game canvas -->
+        <canvas id="game" width="1000" height="600" aria-label="Game canvas"></canvas>
+      </div>
+
+      <div class="arena-bottombar">
+        <div id="hint" class="hint">WASD · Click or G to shoot · F fullscreen</div>
+        <div class="small-controls">
+          <button id="fullscreenBtn" class="tiny">Toggle Fullscreen (F)</button>
+        </div>
+      </div>
+    </section>
+
+    <aside id="right-panel" class="panel">
+      <div class="panel-inner">
+        <h2>Players</h2>
+        <div id="player-list" class="player-list" aria-live="polite">
+          <!-- players inserted here dynamically -->
+          <div class="player-empty">No players yet — join the lobby!</div>
+        </div>
+
+        <hr class="soft" />
+
+        <h3>Session Stats</h3>
+        <ul class="stats-list">
+          <li><span class="stat-key">Total Players</span><span id="stat-players" class="stat-val">0</span></li>
+          <li><span class="stat-key">Total Shots</span><span id="stat-shots" class="stat-val">0</span></li>
+          <li><span class="stat-key">Server TPS</span><span id="stat-tps" class="stat-val">60</span></li>
+        </ul>
+
+        <hr class="soft" />
+
+        <h3>Accessibility</h3>
+        <p class="small">High-contrast mode available; use keyboard only controls if needed.</p>
+
+        <div class="panel-footer">
+          <small>Made with ❤️ — Adi</small>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Credits modal (hidden by default) -->
+  <div id="modal-credits" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-inner">
+      <button class="modal-close" id="close-credits">✕</button>
+      <h3>Credits</h3>
+      <p>This project: <strong>ChatGPT vs Popcorns</strong> — simple multiplayer prototype.</p>
+      <ul>
+        <li>Server: Node.js + Express + socket.io</li>
+        <li>Client: HTML5 canvas + JS</li>
+        <li>Deployed: Render (backend) + Netlify (optional frontend)</li>
+      </ul>
+    </div>
   </div>
 
-  <canvas id="game" width="1000" height="600"></canvas>
+  <!-- Help modal (hidden by default) -->
+  <div id="modal-help" class="modal" role="dialog" aria-hidden="true">
+    <div class="modal-inner">
+      <button class="modal-close" id="close-help">✕</button>
+      <h3>How to Play</h3>
+      <p>Move around, aim with your mouse, and press <strong>G</strong> or click to fire swords. Survive and score.</p>
+      <h4>Rules</h4>
+      <ul>
+        <li>No friendly fire — team bullets won't harm teammates.</li>
+        <li>Each death respawns you inside the arena.</li>
+        <li>Shoot responsibly.</li>
+      </ul>
+    </div>
+  </div>
 
+  <!-- socket.io + game script -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="main.js"></script>
+
+  <!-- small inline UI script (keeps HTML file self-contained) -->
+  <script>
+    // Basic UI glue (no logic changes to game)
+    (function(){
+      const btnHelp = document.getElementById('btn-help');
+      const btnCredits = document.getElementById('btn-credits');
+      const modalHelp = document.getElementById('modal-help');
+      const modalCredits = document.getElementById('modal-credits');
+      const closeHelp = document.getElementById('close-help');
+      const closeCredits = document.getElementById('close-credits');
+      const nameInput = document.getElementById('playerName');
+      const teamPop = document.getElementById('team-pop');
+      const teamGPT = document.getElementById('team-gpt');
+      const teamAuto = document.getElementById('team-auto');
+      const btnJoin = document.getElementById('btn-join');
+      const playerList = document.getElementById('player-list');
+
+      function show(el){ el.style.display = 'block'; el.setAttribute('aria-hidden','false'); }
+      function hide(el){ el.style.display = 'none'; el.setAttribute('aria-hidden','true'); }
+
+      btnHelp.onclick = () => show(modalHelp);
+      btnCredits.onclick = () => show(modalCredits);
+      closeHelp.onclick = () => hide(modalHelp);
+      closeCredits.onclick = () => hide(modalCredits);
+
+      teamPop.onclick = () => { teamPop.classList.add('active'); teamGPT.classList.remove('active'); teamAuto.classList.remove('active'); };
+      teamGPT.onclick = () => { teamGPT.classList.add('active'); teamPop.classList.remove('active'); teamAuto.classList.remove('active'); };
+      teamAuto.onclick = () => { teamAuto.classList.add('active'); teamPop.classList.remove('active'); teamGPT.classList.remove('active'); };
+
+      btnJoin.onclick = () => {
+        btnJoin.disabled = true;
+        const name = nameInput.value.trim() || 'Player';
+        // add a local visual only entry
+        const el = document.createElement('div');
+        el.className = 'player-line you';
+        el.textContent = name + ' (you) — joining...';
+        playerList.prepend(el);
+        setTimeout(()=>{ el.textContent = name + ' — connected'; }, 500);
+      };
+
+      // accessible close via ESC
+      document.addEventListener('keydown', e => { if (e.key === 'Escape'){ hide(modalHelp); hide(modalCredits); } });
+
+      // initial state
+      hide(modalHelp);
+      hide(modalCredits);
+    })();
+  </script>
 </body>
 </html>
