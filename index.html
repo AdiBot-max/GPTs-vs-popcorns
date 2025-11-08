@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChatGPT vs Popcorns</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="ui">
+    <div id="scoreboard">Connecting...</div>
+    <div id="hint">WASD / Arrow keys to move · G to shoot swords · F fullscreen</div>
+    <button id="fullscreenBtn">Toggle Fullscreen (F)</button>
+  </div>
+
+  <canvas id="game" width="1000" height="600"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
