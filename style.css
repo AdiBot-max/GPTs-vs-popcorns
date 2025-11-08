@@ -1,42 +1,73 @@
-/* Reset and base layout */
+:root {
+  --bg: radial-gradient(circle at center, #070a14 0%, #000 100%);
+  --panel: #0d1222cc;
+  --glow1: #6ee7b7;
+  --glow2: #f6c35a;
+  --text: #e6eef8;
+}
+
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  user-select: none;
 }
 
 body {
+  margin: 0;
   height: 100vh;
-  width: 100vw;
-  background: radial-gradient(circle at center, #141414 0%, #000 100%);
+  background: var(--bg);
+  color: var(--text);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: 'Segoe UI', sans-serif;
-  overflow: hidden;
-  color: #00ffaa;
 }
 
-/* Game canvas */
-canvas {
-  width: 1000px;
-  height: 600px;
-  background: #111;
-  border: 4px solid #00ffaa;
-  border-radius: 14px;
-  box-shadow: 0 0 20px #00ffaa55, 0 0 40px #00ffaa22;
-  image-rendering: pixelated;
-  display: block;
-}
-
-/* Optional title overlay (you can add an element if needed) */
 #title {
-  position: absolute;
-  top: 20px;
+  font-size: 26px;
+  color: var(--text);
+  text-shadow: 0 0 20px var(--glow1), 0 0 40px var(--glow2);
+  margin-bottom: 12px;
+}
+
+#ui {
   text-align: center;
-  font-size: 22px;
-  letter-spacing: 1px;
-  width: 100%;
-  color: #00ffaa;
-  text-shadow: 0 0 10px #00ffaa66;
+  background: var(--panel);
+  padding: 10px 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 15px #0008;
+  margin-bottom: 10px;
+}
+
+#scoreboard {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+#hint {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+#fullscreenBtn {
+  margin-top: 6px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--glow1), var(--glow2));
+  color: #111;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.25s;
+}
+#fullscreenBtn:hover {
+  transform: scale(1.05);
+}
+
+canvas {
+  border-radius: 14px;
+  background: #0b1220;
+  box-shadow: 0 0 25px #0ff4, 0 0 40px #ff02;
+  margin-top: 10px;
 }
