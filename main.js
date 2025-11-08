@@ -1,67 +1,129 @@
 const socket = io();
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const scoreboard = document.getElementById("scoreboard");
+const fullBtn = document.getElementById("fullscreenBtn");
 
-canvas.width = 1000;
-canvas.height = 600;
-
-let keys = {};
-let players = {};
 let myId = null;
-let mouseAngle = 0;
+let players = {};
+let bullets = [];
+const keys = {};
+let inputState = { up: false, down: false, left: false, right: false, angle: 0 };
 
-// Listen for server updates
-socket.on("updatePlayers", (data) => {
-  players = data;
-  if (!myId && socket.id in data) myId = socket.id;
+// Resize on load
+window.addEventListener("load", resizeCanvas);
+window.addEventListener("resize", resizeCanvas);
+function resizeCanvas() {
+  canvas.width = window.innerWidth * 0.9;
+  canvas.height = window.innerHeight * 0.8;
+}
+
+// Controls
+window.addEventListener("keydown", (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === "g" || e.key === "G") shoot();
+  if (e.key === "f" || e.key === "F") toggleFullscreen();
 });
-
-// Handle shoot event (basic visual flash)
-socket.on("shoot", ({ id }) => {
-  if (players[id]) {
-    const p = players[id];
-    ctx.fillStyle = "yellow";
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-    ctx.fill();
-  }
-});
-
-// Movement & aiming
-window.addEventListener("keydown", (e) => (keys[e.key.toLowerCase()] = true));
 window.addEventListener("keyup", (e) => (keys[e.key.toLowerCase()] = false));
-window.addEventListener("mousemove", (e) => {
+
+function updateInput() {
+  inputState.up = keys["w"] || keys["arrowup"];
+  inputState.down = keys["s"] || keys["arrowdown"];
+  inputState.left = keys["a"] || keys["arrowleft"];
+  inputState.right = keys["d"] || keys["arrowright"];
+}
+
+canvas.addEventListener("mousemove", (e) => {
   const rect = canvas.getBoundingClientRect();
-  const cx = rect.left + canvas.width / 2;
-  const cy = rect.top + canvas.height / 2;
-  mouseAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const me = players[myId];
+  if (me) inputState.angle = Math.atan2(my - me.y, mx - me.x);
 });
-window.addEventListener("keypress", (e) => {
-  if (e.key.toLowerCase() === "g") socket.emit("shoot");
+canvas.addEventListener("click", shoot);
+
+function shoot() {
+  if (!myId || !players[myId]) return;
+  socket.emit("shoot", { angle: inputState.angle });
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) canvas.requestFullscreen().catch(() => {});
+  else document.exitFullscreen().catch(() => {});
+}
+fullBtn.onclick = toggleFullscreen;
+
+// Socket events
+socket.on("init", (data) => {
+  myId = data.id;
+  players = data.players;
+});
+socket.on("players", (data) => (players = data));
+socket.on("state", (data) => {
+  players = data.players;
+  bullets = data.bullets;
 });
 
-function loop() {
-  socket.emit("move", {
-    up: keys["w"],
-    down: keys["s"],
-    left: keys["a"],
-    right: keys["d"],
-    angle: mouseAngle
-  });
-
+// Draw loop
+function draw() {
+  updateInput();
+  socket.emit("input", inputState);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  for (let id in players) {
-    const p = players[id];
-    if (!p.alive) continue;
+  // background grid
+  ctx.save();
+  ctx.strokeStyle = "rgba(0,255,255,0.1)";
+  for (let x = 0; x < canvas.width; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 40) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // bullets
+  bullets.forEach((b) => {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = b.team === 1 ? "#f6c35a" : "#6ee7b7";
+    ctx.fill();
+  });
+
+  // players
+  Object.values(players).forEach((p) => {
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
-    ctx.fillStyle = p.team === "chatGPT" ? "#00aaff" : "#ffcc00";
-    ctx.fillRect(-15, -15, 30, 30);
+    ctx.rotate(p.rot || 0);
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.fillStyle = p.team === 1 ? "#f6c35a" : "#6ee7b7";
+    ctx.shadowColor = p.team === 1 ? "#f6c35a" : "#6ee7b7";
+    ctx.shadowBlur = 15;
+    ctx.fill();
     ctx.restore();
-  }
 
-  requestAnimationFrame(loop);
+    // name & health
+    ctx.fillStyle = "#fff";
+    ctx.font = "12px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(p.name, p.x, p.y + 30);
+
+    ctx.fillStyle = "#222";
+    ctx.fillRect(p.x - 20, p.y - 30, 40, 5);
+    ctx.fillStyle = "#0f0";
+    ctx.fillRect(p.x - 20, p.y - 30, 40 * (p.health / 100), 5);
+  });
+
+  // scoreboard
+  const team1 = Object.values(players).filter((p) => p.team === 1);
+  const team2 = Object.values(players).filter((p) => p.team === 2);
+  scoreboard.innerText = `🍿 Popcorns: ${team1.length} | 🤖 ChatGPTs: ${team2.length}`;
+  requestAnimationFrame(draw);
 }
-loop();
+requestAnimationFrame(draw);
