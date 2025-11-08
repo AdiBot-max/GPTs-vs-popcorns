@@ -15,6 +15,11 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(__dirname));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
+// Serve Google verification file
+app.get("/google0b41663e5ac517d6.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "google0b41663e5ac517d6.html"));
+});
+
 // === GAME CONFIG (match client) ===
 const ARENA = { w: 3000, h: 2000 };
 const PLAYER_RADIUS = 18;
@@ -173,4 +178,5 @@ setInterval(() => {
 server.listen(PORT, () => {
   console.log(`🚀 GPTs vs Popcorns server running on port ${PORT} — arena ${ARENA.w}x${ARENA.h}`);
 });
+
 
