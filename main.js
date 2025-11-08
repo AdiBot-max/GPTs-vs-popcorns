@@ -1,155 +1,132 @@
-// main.js (client) — robust, logs useful info
-// Note: include <script src="/socket.io/socket.io.js"></script> before this file in index.html
+// main.js — clean version with camera follow logic
 
-// Do NOT clear localStorage globally (can interfere with other pages).
-// But force a fresh socket instance to avoid stale connection reuse.
-const socket = io({ forceNew: true, transports: ["websocket", "polling"] });
+const socket = io({ forceNew: true });
 
-// Canvas — match server arena
+// Canvas setup
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 canvas.width = 1000;
 canvas.height = 600;
 
+// World size (must match server)
+const ARENA = { w: 3000, h: 2000 };
+
+// State
 let myId = null;
 let players = {};
-let bullets = []; // array for easy iteration
-let input = { up:false, down:false, left:false, right:false, angle:0 };
+let bullets = [];
+let input = { up: false, down: false, left: false, right: false, angle: 0 };
 const keys = {};
 
-// Debug helper
-function dbg(...args) { console.log("[game]", ...args); }
-
-socket.on("connect", () => {
-  dbg("socket connected", socket.id);
-});
-socket.on("connect_error", (err) => {
-  console.error("connect_error", err);
-});
-socket.on("disconnect", (reason) => {
-  dbg("socket disconnected:", reason);
-});
-
-// socket events — keep logs so we can see what arrives
-socket.on("init", (data) => {
-  dbg("init received", data && { id: data.id, playersCount: Object.keys(data.players || {}).length });
+// Socket handlers
+socket.on("init", data => {
   myId = data.id;
   players = data.players || {};
   bullets = Object.values(data.bullets || {});
 });
 
-socket.on("players", (data) => {
-  players = data || {};
-  dbg("players update, count:", Object.keys(players).length);
-});
-
-socket.on("state", (data) => {
+socket.on("state", data => {
   players = data.players || {};
-  bullets = Object.values(data.bullets || {});
+  bullets = Object.values(data.bullets || []);
 });
 
-socket.on("bulletsAdd", (b) => {
-  // optionally handle transient bullet adds
-  bullets.push(b);
+socket.on("players", data => {
+  players = data || {};
 });
 
 // Input handling
-window.addEventListener("keydown", (e) => {
-  keys[e.key.toLowerCase()] = true;
-});
-window.addEventListener("keyup", (e) => {
-  keys[e.key.toLowerCase()] = false;
-});
+window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-// Mouse aim
-canvas.addEventListener("mousemove", (e) => {
+canvas.addEventListener("mousemove", e => {
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
   const me = players[myId];
-  if (me) input.angle = Math.atan2(my - me.y, mx - me.x);
-  else input.angle = Math.atan2(my - canvas.height/2, mx - canvas.width/2);
+  if (me) {
+    input.angle = Math.atan2(my - me.y, mx - me.x);
+  }
 });
 
-// click to shoot
 canvas.addEventListener("click", () => {
   socket.emit("shoot", { angle: input.angle });
 });
 
-// Send input at 30Hz
+// Send input at fixed interval
 setInterval(() => {
   input.up = !!(keys["w"] || keys["arrowup"]);
   input.down = !!(keys["s"] || keys["arrowdown"]);
   input.left = !!(keys["a"] || keys["arrowleft"]);
   input.right = !!(keys["d"] || keys["arrowright"]);
   socket.emit("input", input);
-}, 1000/30);
+}, 1000 / 30);
 
-// Defensive draw: don't crash if data missing
+// Draw loop
 function draw() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // background grid (faint)
+  // Camera follow
+  const me = players[myId];
+  let camX = 0, camY = 0;
+  if (me) {
+    camX = me.x - canvas.width / 2;
+    camY = me.y - canvas.height / 2;
+    camX = Math.max(0, Math.min(camX, ARENA.w - canvas.width));
+    camY = Math.max(0, Math.min(camY, ARENA.h - canvas.height));
+  }
+
   ctx.save();
-  ctx.globalAlpha = 0.06;
-  for (let x=0;x<canvas.width;x+=40){ ctx.fillRect(x,0,1,canvas.height); }
-  for (let y=0;y<canvas.height;y+=40){ ctx.fillRect(0,y,canvas.width,1); }
-  ctx.restore();
+  ctx.translate(-camX, -camY);
 
-  // bullets
+  // Optional grid
+  ctx.globalAlpha = 0.06;
+  for (let x = 0; x < ARENA.w; x += 40) ctx.fillRect(x, 0, 1, ARENA.h);
+  for (let y = 0; y < ARENA.h; y += 40) ctx.fillRect(0, y, ARENA.w, 1);
+  ctx.globalAlpha = 1;
+
+  // Draw bullets
   bullets.forEach(b => {
-    if (!b) return;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, 6, 0, Math.PI*2);
+    ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
     ctx.fillStyle = b.team === 1 ? "#f6c35a" : "#6ee7b7";
     ctx.fill();
   });
 
-  // players
+  // Draw players
   Object.values(players).forEach(p => {
-    if (!p) return;
-    // defensive clamp before draw (in case server gave slightly out-of-range)
-    const px = Math.max(0, Math.min(canvas.width, p.x || 0));
-    const py = Math.max(0, Math.min(canvas.height, p.y || 0));
-
     ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(typeof p.rot === "number" ? p.rot : 0);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot || 0);
     ctx.beginPath();
-    ctx.arc(0,0,18,0,Math.PI*2);
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
     ctx.fillStyle = p.team === 1 ? "#f6c35a" : "#6ee7b7";
     ctx.fill();
 
-    // sword
-    ctx.fillStyle = "#d9d9e0";
-    ctx.fillRect(14, -3, 16, 6);
-
-    ctx.restore();
-
-    // health
-    ctx.fillStyle = "#222";
-    ctx.fillRect(px - 20, py - 30, 40, 6);
-    ctx.fillStyle = "#0f0";
-    const hp = Math.max(0, Math.min(100, p.health || 100));
-    ctx.fillRect(px - 20, py - 30, (hp/100) * 40, 6);
-
-    // name
+    // Name
     ctx.fillStyle = "#fff";
     ctx.font = "12px monospace";
     ctx.textAlign = "center";
-    ctx.fillText((p.name || p.id) + (p.id === myId ? " (you)" : ""), px, py + 30);
+    ctx.fillText(p.name + (p.id === myId ? " (you)" : ""), 0, 30);
+    ctx.restore();
+
+    // Health bar
+    const hp = p.health || 100;
+    ctx.fillStyle = "#222";
+    ctx.fillRect(p.x - 20, p.y - 30, 40, 6);
+    ctx.fillStyle = "#0f0";
+    ctx.fillRect(p.x - 20, p.y - 30, (hp/100) * 40, 6);
   });
 
-  // scoreboard quick
+  ctx.restore();
+
+  // Update scoreboard UI
   const t1 = Object.values(players).filter(p => p.team === 1).length;
   const t2 = Object.values(players).filter(p => p.team === 2).length;
-  const scoreboardEl = document.getElementById("scoreboard");
-  if (scoreboardEl) scoreboardEl.innerText = `🍿 Popcorns: ${t1} | 🤖 ChatGPTs: ${t2}`;
+  const scoreboard = document.getElementById("scoreboard");
+  if (scoreboard) {
+    scoreboard.innerText = `Popcorns: ${t1} | ChatGPTs: ${t2}`;
+  }
 
   requestAnimationFrame(draw);
 }
-
 requestAnimationFrame(draw);
-
-// expose debug helpers
-window.__game_debug = { playersRef: () => players, bulletsRef: () => bullets };
