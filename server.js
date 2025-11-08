@@ -16,7 +16,7 @@ app.use(express.static(__dirname));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // === GAME CONFIG (match client) ===
-const ARENA = { w: 1000, h: 600 };
+const ARENA = { w: 3000, h: 2000 };
 const PLAYER_RADIUS = 18;
 const BULLET_SPEED = 9;
 const BULLET_LIFE = 80;
@@ -173,3 +173,4 @@ setInterval(() => {
 server.listen(PORT, () => {
   console.log(`🚀 GPTs vs Popcorns server running on port ${PORT} — arena ${ARENA.w}x${ARENA.h}`);
 });
+
