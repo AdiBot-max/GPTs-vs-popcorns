@@ -8,8 +8,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.use(express.static(path.join(__dirname, 'frontend')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'frontend', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
 
@@ -121,4 +121,5 @@ setInterval(() => {
 server.listen(PORT, () => {
   console.log(`Grok vs Popcorns running on http://localhost:${PORT}`);
   console.log(`Team balancing: Groks  Popcorns`);
+
 });
