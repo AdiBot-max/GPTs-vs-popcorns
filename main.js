@@ -1,4 +1,4 @@
-const socket = io("https://gpts-vs-popcorns-1.onrender.com");
+const socket = io();
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const scoreboard = document.getElementById('scoreboard');
@@ -8,10 +8,18 @@ let myId = null;
 let players = {};
 let bullets = [];
 
-let inputState = { up:false, down:false, left:false, right:false, angle:0 };
+let inputState = { up: false, down: false, left: false, right: false, angle: 0 };
 const keys = {};
 
-function sendInput() { socket.emit('input', inputState); }
+// Safe DOM load
+window.addEventListener('DOMContentLoaded', () => {
+  if (!canvas) return;
+  resizeCanvas();
+});
+
+function sendInput() {
+  socket.emit('input', inputState);
+}
 
 // Fullscreen
 function toggleFullscreen() {
@@ -31,6 +39,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { keys[e.key] = false; });
 
+// Mouse tracking
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left;
@@ -47,6 +56,7 @@ function shoot() {
   socket.emit('shoot', { angle: inputState.angle });
 }
 
+// Socket events
 socket.on('init', data => {
   myId = data.id;
   players = data.players || {};
@@ -54,7 +64,10 @@ socket.on('init', data => {
 });
 
 socket.on('players', data => { players = data; });
-socket.on('state', data => { players = data.players; bullets = data.bullets; });
+socket.on('state', data => {
+  players = data.players;
+  bullets = data.bullets;
+});
 
 function updateInputFromKeys() {
   inputState.up = keys['w'] || keys['ArrowUp'];
@@ -104,7 +117,6 @@ function draw() {
     ctx.rect(14, -3, 16, 6);
     ctx.fillStyle = '#d9d9e0';
     ctx.fill();
-
     ctx.restore();
 
     // health bar
@@ -120,8 +132,9 @@ function draw() {
     ctx.fillText(p.name + (p.id===myId ? ' (you)' : ''), p.x, p.y + 28);
   });
 
-  const t1Score = Object.values(players).filter(p=>p.team===1).reduce((s,p)=>s+p.score,0);
-  const t2Score = Object.values(players).filter(p=>p.team===2).reduce((s,p)=>s+p.score,0);
+  // scoreboard
+  const t1Score = Object.values(players).filter(p=>p.team===1).reduce((s,p)=>s+p.score||0,0);
+  const t2Score = Object.values(players).filter(p=>p.team===2).reduce((s,p)=>s+p.score||0,0);
   scoreboard.innerHTML = `Popcorns: ${t1Score} | ChatGPTs: ${t2Score}`;
 
   requestAnimationFrame(draw);
@@ -134,4 +147,3 @@ function resizeCanvas() {
   canvas.style.height = (canvas.height * scale) + 'px';
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
