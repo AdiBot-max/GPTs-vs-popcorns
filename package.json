@@ -1,14 +1,20 @@
 {
   "name": "chatgpt-vs-popcorns",
-  "version": "1.0.2",
-  "description": "Multiplayer Popcorn Battle — ChatGPT vs Popcorns",
+  "version": "1.0.3",
+  "description": "ChatGPT vs Popcorns multiplayer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'No build step needed — backend only'"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
